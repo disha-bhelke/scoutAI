@@ -17,6 +17,7 @@ from rag.retriever import Retriever
 from rag.bm25_retriever import BM25Retriever
 from rag.hybrid_retriever import HybridRetriever
 from rag.memory import ConversationMemory
+from rag.cloudinary_storage import CloudinaryStorageService
 from rag.generator import AnswerGenerator
 from config import settings
 
@@ -33,6 +34,7 @@ class RAGPipeline:
         self.vector_store = QdrantVectorStore()
         self.bm25_retriever = BM25Retriever()
         self.memory = ConversationMemory()
+        self.cloudinary = CloudinaryStorageService()
         self.dense_retriever = Retriever(
             embedding_service=self.embedding_service,
             vector_store=self.vector_store
@@ -190,6 +192,76 @@ class RAGPipeline:
             document_name=doc_name,
             document_id=doc_id,
             total_chunks=len(all_chunks),
+            collection=self.vector_store.collection_name
+        )
+
+    def ingest_file_bytes(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        reset_collection: bool = False
+    ) -> IngestResponse:
+        """
+        1. Uploads the document to Cloudinary storage.
+        2. Extracts pages directly from bytes without writing to disk.
+        3. Chunks the text.
+        4. Generates Gemini embeddings with 429 rate-limit backoff.
+        5. Stores dense vectors in Qdrant and sparse tokens in BM25.
+        """
+        if reset_collection:
+            self.vector_store.delete_collection()
+            self.bm25_retriever.clear()
+
+        # 1. Upload to Cloudinary
+        upload_meta = self.cloudinary.upload_file(
+            file_bytes=file_bytes,
+            filename=filename,
+            folder="scout_documents"
+        )
+        logger.info(f"Uploaded to Cloudinary: {upload_meta.get('url')}")
+
+        # 2. Extract
+        pages_data = self.extractor.extract_from_bytes(file_bytes=file_bytes, filename=filename)
+        if not pages_data:
+            raise ValueError(f"No extractable text found in file: {filename}")
+
+        # 3. Chunk
+        chunks = self.chunker.chunk_pages(pages_data)
+        if not chunks:
+            raise ValueError(f"Could not generate chunks from file: {filename}")
+
+        # 4. Embed in batches of 50 with 429 rate-limit retries
+        batch_size = 50
+        all_embeddings = []
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+
+        for batch_idx, i in enumerate(range(0, len(chunks), batch_size), start=1):
+            batch = chunks[i:i + batch_size]
+            batch_texts = [c.content for c in batch]
+
+            batch_embeddings = self._embed_batch_with_retry(
+                batch_texts=batch_texts,
+                batch_index=batch_idx,
+                total_batches=total_batches,
+                max_retries=5,
+                initial_backoff=5.0
+            )
+            all_embeddings.extend(batch_embeddings)
+
+            if batch_idx < total_batches:
+                time.sleep(1.5)
+
+        # 5. Store in Qdrant & BM25
+        self.vector_store.upsert_chunks(chunks, all_embeddings)
+        self.bm25_retriever.build_index(chunks)
+
+        doc_id = chunks[0].metadata.document_id
+
+        return IngestResponse(
+            message=f"Uploaded to Cloudinary and indexed {len(chunks)} chunks from {filename}.",
+            document_name=filename,
+            document_id=doc_id,
+            total_chunks=len(chunks),
             collection=self.vector_store.collection_name
         )
 

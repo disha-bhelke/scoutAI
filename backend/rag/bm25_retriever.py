@@ -26,9 +26,9 @@ class BM25Retriever:
         if index_path:
             self.index_path = Path(index_path)
         else:
-            base_dir = Path(__file__).resolve().parent.parent / "data"
-            base_dir.mkdir(parents=True, exist_ok=True)
-            self.index_path = base_dir / "bm25_index.pkl"
+            storage_dir = settings.get_storage_path()
+            storage_dir.mkdir(parents=True, exist_ok=True)
+            self.index_path = storage_dir / "bm25_index.pkl"
 
         self.corpus_chunks: List[Dict[str, Any]] = []
         self.bm25: Optional[BM25Okapi] = None

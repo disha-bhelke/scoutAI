@@ -1,25 +1,28 @@
+import os
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from api.routes import router as api_router
+from config import settings
 
 app = FastAPI(
-    title="Scout AI - Backend RAG Engine",
+    title="Scout AI - Enterprise RAG Engine",
     version="1.0.0",
-    description="A clean, modular RAG backend powered by Gemini, LangChain, PyMuPDF, and Qdrant."
+    description="Production-ready RAG system powered by Gemini, Hybrid RRF Retrieval, and Qdrant."
 )
 
-# Enable CORS
+# Configure CORS
+origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins if origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register API routes
+# Register API routes (including /health, /query, /ingest)
 app.include_router(api_router)
 
 # Mount Frontend static files for seamless single-server access
@@ -30,5 +33,7 @@ if frontend_dir.exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    is_dev = os.environ.get("ENV", "development").lower() == "development"
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=is_dev)
 

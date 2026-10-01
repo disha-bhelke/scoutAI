@@ -64,6 +64,19 @@ class QueryResponse(BaseModel):
     conversation_id: str = Field(..., description="The conversation ID for this chat session")
 
 
+class LoginRequest(BaseModel):
+    """Request schema for Admin authentication."""
+    username: str = Field(..., description="Admin username")
+    password: str = Field(..., description="Admin password")
+
+
+class LoginResponse(BaseModel):
+    """Response schema for Admin authentication."""
+    token: str
+    message: str = "Authentication successful"
+    username: str
+
+
 class HealthResponse(BaseModel):
     """Health check response schema."""
     status: str

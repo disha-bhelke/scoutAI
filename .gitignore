@@ -13,7 +13,9 @@ venv.bak/
 # Environment Variables & Secrets
 .env
 .env.*
+*.env
 !.env.example
+!**/.env.example
 
 # Byte-compiled / optimized files
 __pycache__/
@@ -29,6 +31,7 @@ backend/data/qdrant_storage/
 qdrant_storage/
 *.sqlite3
 *.db
+*.pkl
 
 # Document Data & Raw Ingest Files (keep .gitkeep if needed)
 backend/data/documents/*.pdf

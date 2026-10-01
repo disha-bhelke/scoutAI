@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 
+from config import settings
+
+
 class ConversationMemory:
     """
     Lightweight, persistent SQLite-backed conversation memory store.
@@ -16,9 +19,9 @@ class ConversationMemory:
         if db_path:
             self.db_path = Path(db_path)
         else:
-            base_dir = Path(__file__).resolve().parent.parent / "data"
-            base_dir.mkdir(parents=True, exist_ok=True)
-            self.db_path = base_dir / "conversations.db"
+            storage_dir = settings.get_storage_path()
+            storage_dir.mkdir(parents=True, exist_ok=True)
+            self.db_path = storage_dir / "conversations.db"
 
         self._init_db()
 

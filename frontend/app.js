@@ -2,7 +2,10 @@
  * Scout AI - Frontend Controller & Backend Integration
  */
 
-const API_BASE = "http://localhost:8000";
+// Resolve API Base URL (empty string for same-origin production deployment, fallback to localhost:8000 for standalone dev)
+const API_BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+  ? (window.location.port === "8000" ? "" : "http://localhost:8000")
+  : "";
 
 // State
 let currentConversationId = localStorage.getItem("scout_conversation_id") || null;
@@ -109,6 +112,206 @@ function setupEventListeners() {
       sidebar.classList.toggle("open");
     });
   }
+
+  // Admin Modal Handling
+  setupAdminModal();
+}
+
+function setupAdminModal() {
+  const adminModalBtn = document.getElementById("admin-modal-btn");
+  const adminModal = document.getElementById("admin-modal");
+  const closeModalBtn = document.getElementById("close-modal-btn");
+  const adminLoginView = document.getElementById("admin-login-view");
+  const adminIngestView = document.getElementById("admin-ingest-view");
+  const adminUserInput = document.getElementById("admin-user-input");
+  const adminPassInput = document.getElementById("admin-pass-input");
+  const adminLoginSubmit = document.getElementById("admin-login-submit");
+  const loginErrorMsg = document.getElementById("login-error-msg");
+  const adminLogoutBtn = document.getElementById("admin-logout-btn");
+  const loggedUserName = document.getElementById("logged-user-name");
+  const triggerIngestBtn = document.getElementById("trigger-ingest-btn");
+  const ingestPathInput = document.getElementById("ingest-path-input");
+  const resetCollectionCheckbox = document.getElementById("reset-collection-checkbox");
+  const ingestStatusBox = document.getElementById("ingest-status-box");
+  const ingestStatusText = document.getElementById("ingest-status-text");
+  const ingestDetails = document.getElementById("ingest-details");
+  const ingestSpinner = document.getElementById("ingest-spinner");
+  const adminBtnLabel = document.getElementById("admin-btn-label");
+
+  function getAdminToken() {
+    return localStorage.getItem("scout_admin_token");
+  }
+
+  function updateAdminBtnState() {
+    if (getAdminToken()) {
+      adminBtnLabel.textContent = "Admin (Logged In)";
+    } else {
+      adminBtnLabel.textContent = "Admin Portal";
+    }
+  }
+
+  updateAdminBtnState();
+
+  function openModal() {
+    const token = getAdminToken();
+    if (token) {
+      adminLoginView.style.display = "none";
+      adminIngestView.style.display = "flex";
+      loggedUserName.textContent = localStorage.getItem("scout_admin_user") || "admin";
+    } else {
+      adminLoginView.style.display = "flex";
+      adminIngestView.style.display = "none";
+      loginErrorMsg.style.display = "none";
+      adminPassInput.value = "";
+    }
+    adminModal.style.display = "flex";
+  }
+
+  function closeModal() {
+    adminModal.style.display = "none";
+    loginErrorMsg.style.display = "none";
+  }
+
+  adminModalBtn.addEventListener("click", openModal);
+  closeModalBtn.addEventListener("click", closeModal);
+  adminModal.addEventListener("click", (e) => {
+    if (e.target === adminModal) closeModal();
+  });
+
+  // Handle Login
+  adminLoginSubmit.addEventListener("click", async () => {
+    const username = adminUserInput.value.trim();
+    const password = adminPassInput.value.trim();
+
+    if (!username || !password) {
+      loginErrorMsg.textContent = "Please provide both username and password.";
+      loginErrorMsg.style.display = "block";
+      return;
+    }
+
+    loginErrorMsg.style.display = "none";
+    adminLoginSubmit.disabled = true;
+    adminLoginSubmit.textContent = "Authenticating...";
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ detail: "Login failed" }));
+        throw new Error(data.detail || "Invalid credentials.");
+      }
+
+      const data = await res.json();
+      localStorage.setItem("scout_admin_token", data.token);
+      localStorage.setItem("scout_admin_user", data.username);
+      updateAdminBtnState();
+
+      // Switch to Ingest view
+      adminLoginView.style.display = "none";
+      adminIngestView.style.display = "flex";
+      loggedUserName.textContent = data.username;
+    } catch (err) {
+      loginErrorMsg.textContent = err.message;
+      loginErrorMsg.style.display = "block";
+    } finally {
+      adminLoginSubmit.disabled = false;
+      adminLoginSubmit.textContent = "Authenticate";
+    }
+  });
+
+  // Handle Logout
+  adminLogoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("scout_admin_token");
+    localStorage.removeItem("scout_admin_user");
+    updateAdminBtnState();
+    adminIngestView.style.display = "none";
+    adminLoginView.style.display = "flex";
+    adminPassInput.value = "";
+  });
+
+  // Handle Ingest (File Upload to Cloudinary or Directory Path)
+  triggerIngestBtn.addEventListener("click", async () => {
+    const token = getAdminToken();
+    if (!token) {
+      adminLogoutBtn.click();
+      return;
+    }
+
+    const docFileInput = document.getElementById("doc-file-input");
+    const file = docFileInput && docFileInput.files && docFileInput.files[0];
+    const filePath = ingestPathInput.value.trim() || undefined;
+    const resetCollection = resetCollectionCheckbox.checked;
+
+    if (!file && !filePath) {
+      alert("Please either select a document to upload to Cloudinary or enter an existing path.");
+      return;
+    }
+
+    triggerIngestBtn.disabled = true;
+    ingestStatusBox.style.display = "flex";
+    ingestSpinner.style.display = "inline-block";
+    ingestStatusText.textContent = file 
+      ? `Uploading ${file.name} to Cloudinary and indexing...`
+      : "Extracting and indexing documents...";
+    ingestDetails.textContent = "This may take a moment depending on document size...";
+
+    try {
+      let res;
+      if (file) {
+        // Upload directly to Cloudinary via /admin/upload
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("reset_collection", resetCollection);
+
+        res = await fetch(`${API_BASE}/admin/upload`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          body: formData
+        });
+      } else {
+        // Ingest from path via /ingest
+        res = await fetch(`${API_BASE}/ingest`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            file_path: filePath,
+            reset_collection: resetCollection
+          })
+        });
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ detail: "Ingestion failed" }));
+        throw new Error(data.detail || `Error ${res.status}`);
+      }
+
+      const data = await res.json();
+      ingestSpinner.style.display = "none";
+      ingestStatusText.textContent = "✅ Ingestion Successful!";
+      ingestDetails.innerHTML = `
+        <strong>${data.message}</strong><br>
+        Document: <code>${data.document_name}</code><br>
+        Total Chunks: <code>${data.total_chunks}</code> | Collection: <code>${data.collection}</code>
+      `;
+      // Clear file input
+      if (docFileInput) docFileInput.value = "";
+    } catch (err) {
+      ingestSpinner.style.display = "none";
+      ingestStatusText.textContent = "❌ Ingestion Failed";
+      ingestDetails.textContent = err.message;
+    } finally {
+      triggerIngestBtn.disabled = false;
+    }
+  });
 }
 
 function autoResizeTextarea() {

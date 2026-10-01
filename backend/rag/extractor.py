@@ -53,6 +53,42 @@ class DocumentExtractor:
         else:
             raise ValueError(f"Unsupported file format: {suffix}")
 
+    @staticmethod
+    def extract_from_bytes(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
+        """
+        Extracts pages/content directly from in-memory bytes (downloaded from Cloudinary or uploaded).
+        """
+        suffix = Path(filename).suffix.lower()
+
+        if suffix == ".pdf":
+            pages_data = []
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            try:
+                for page_idx in range(len(doc)):
+                    page = doc[page_idx]
+                    text = page.get_text()
+                    if text.strip():
+                        pages_data.append({
+                            "page_number": page_idx + 1,
+                            "text": text,
+                            "document_name": filename
+                        })
+            finally:
+                doc.close()
+            return pages_data
+
+        elif suffix in [".txt", ".md"]:
+            content = file_bytes.decode("utf-8", errors="ignore")
+            if content.strip():
+                return [{
+                    "page_number": 1,
+                    "text": content,
+                    "document_name": filename
+                }]
+            return []
+        else:
+            raise ValueError(f"Unsupported file format: {suffix}")
+
 
 PDFExtractor = DocumentExtractor
 
