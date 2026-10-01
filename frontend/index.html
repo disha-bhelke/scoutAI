@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scout AI — Intelligence Engine</title>
+  <meta name="description" content="AI-powered intelligent document question answering assistant with hybrid retrieval.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Markdown parser for rich LLM responses -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">Scout AI</span>
+            <span class="brand-badge">RAG v1.0</span>
+          </div>
+        </div>
+        <button id="new-chat-btn" class="new-chat-btn" title="Start a new chat session">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Chat</span>
+        </button>
+      </div>
+
+      <div class="sidebar-section-label">Active Session</div>
+      <div class="session-card">
+        <div class="session-status">
+          <span class="status-indicator"></span>
+          <span class="status-text">Connected to Engine</span>
+        </div>
+        <div class="session-id-container">
+          <span class="session-id-label">Session ID:</span>
+          <code id="session-id-display">Generating...</code>
+        </div>
+      </div>
+
+      <div class="sidebar-section-label">Suggested Inquiries</div>
+      <div class="suggestions-list">
+        <button class="suggestion-btn" data-query="What is the policy regarding gifts, benefits, and promises of favours?">
+          <span class="suggestion-icon">📜</span>
+          <span class="suggestion-text">Gifts & Benefits Policy</span>
+        </button>
+        <button class="suggestion-btn" data-query="What are the rules regarding conflicts of interest?">
+          <span class="suggestion-icon">⚖️</span>
+          <span class="suggestion-text">Conflicts of Interest</span>
+        </button>
+        <button class="suggestion-btn" data-query="How should confidential company information and data protection be handled?">
+          <span class="suggestion-icon">🔒</span>
+          <span class="suggestion-text">Confidentiality & Data</span>
+        </button>
+        <button class="suggestion-btn" data-query="What are the health, safety, and working environment standards?">
+          <span class="suggestion-icon">🛡️</span>
+          <span class="suggestion-text">Health & Safety Standards</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="footer-pipeline">
+          <div class="pipeline-item"><span class="pipe-dot dot-dense"></span> Dense Vector (Qdrant)</div>
+          <div class="pipeline-item"><span class="pipe-dot dot-bm25"></span> Sparse BM25 Keyword</div>
+          <div class="pipeline-item"><span class="pipe-dot dot-rrf"></span> RRF Re-Ranking + Memory</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Content -->
+    <main class="main-content">
+      <header class="top-nav">
+        <button id="mobile-toggle" class="icon-btn mobile-only" aria-label="Toggle sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div class="nav-title-group">
+          <h1>Corporate Intelligence Assistant</h1>
+          <p class="nav-subtitle">Hybrid-Retrieved Grounded Answers</p>
+        </div>
+        <div class="nav-status">
+          <span class="backend-pill" id="backend-status-pill">
+            <span class="pill-dot"></span>
+            <span id="backend-status-text">Backend Ready</span>
+          </span>
+        </div>
+      </header>
+
+      <div class="chat-scroll-container" id="chat-scroll">
+        <div class="chat-stream" id="chat-stream">
+          <!-- Welcome Placeholder -->
+          <div class="welcome-card" id="welcome-card">
+            <div class="welcome-logo">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <h2>How can I assist you today?</h2>
+            <p>Ask questions regarding corporate policies, compliance guidelines, internal protocols, or code of ethics.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <footer class="input-container-wrapper">
+        <form class="chat-input-form" id="chat-form">
+          <div class="input-box-wrapper">
+            <textarea
+              id="user-input"
+              class="chat-textarea"
+              rows="1"
+              placeholder="Ask a question about the document knowledge base..."
+              autofocus
+            ></textarea>
+            <button type="submit" id="send-btn" class="send-btn" aria-label="Send message" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div class="input-disclaimer">
+          Scout AI utilizes Hybrid RRF retrieval over verified company documents. Answers are strictly grounded in retrieved context.
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

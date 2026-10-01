@@ -1,0 +1,58 @@
+# ==============================================================================
+# Scout AI / RAG Project .gitignore
+# ==============================================================================
+
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Local Databases & Indexes
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.pkl
+backend/data/qdrant_storage/
+qdrant_storage/
+*.sqlite3
+*.db
+
+# Document Data & Raw Ingest Files (keep .gitkeep if needed)
+backend/data/documents/*.pdf
+backend/data/documents/*.txt
+!backend/data/documents/.gitkeep
+backend/data/confluence/*.txt
+!backend/data/confluence/.gitkeep
+
+# Logs & Temporary Files
+*.log
+logs/
+*.tmp
+*.bak
+.cache/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+ehthumbs.db
+[Nn]on[Tt]racked/
