@@ -14,8 +14,17 @@ venv.bak/
 .env
 .env.*
 *.env
+*.local
+.env*.local
 !.env.example
 !**/.env.example
+
+# Frontend, Node & Vite Builds
+node_modules/
+dist/
+dist-ssr/
+.vite/
+
 
 # Byte-compiled / optimized files
 __pycache__/

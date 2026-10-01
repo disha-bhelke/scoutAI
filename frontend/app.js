@@ -2,10 +2,26 @@
  * Scout AI - Frontend Controller & Backend Integration
  */
 
-// Resolve API Base URL (empty string for same-origin production deployment, fallback to localhost:8000 for standalone dev)
-const API_BASE = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
-  ? (window.location.port === "8000" ? "" : "http://localhost:8000")
-  : "";
+// Resolve API Base URL (reads VITE_API_URL from Vite env if available, else falls back cleanly)
+const getApiBase = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+    }
+  } catch (_) {
+    // Non-ESM or non-Vite environment
+  }
+  if (typeof window !== "undefined" && window.__VITE_API_URL__) {
+    return window.__VITE_API_URL__.replace(/\/+$/, "");
+  }
+  // Standalone dev fallback vs same-origin production
+  return window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+    ? (window.location.port === "8000" ? "" : "http://localhost:8000")
+    : "";
+};
+
+const API_BASE = getApiBase();
+
 
 // State
 let currentConversationId = localStorage.getItem("scout_conversation_id") || null;
@@ -254,7 +270,7 @@ function setupAdminModal() {
     triggerIngestBtn.disabled = true;
     ingestStatusBox.style.display = "flex";
     ingestSpinner.style.display = "inline-block";
-    ingestStatusText.textContent = file 
+    ingestStatusText.textContent = file
       ? `Uploading ${file.name} to Cloudinary and indexing...`
       : "Extracting and indexing documents...";
     ingestDetails.textContent = "This may take a moment depending on document size...";
@@ -490,7 +506,7 @@ function renderErrorMessage(message) {
 }
 
 function escapeHTML(str) {
-  return str.replace(/[&<>'"]/g, 
+  return str.replace(/[&<>'"]/g,
     tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
   );
 }
