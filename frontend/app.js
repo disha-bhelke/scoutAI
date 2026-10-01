@@ -2,25 +2,28 @@
  * Scout AI - Frontend Controller & Backend Integration
  */
 
-// Resolve API Base URL (reads VITE_API_URL from Vite env if available, else falls back cleanly)
+// Resolve Backend API URL from environment variables (.env / Vercel)
 const getApiBase = () => {
-  try {
-    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
-    }
-  } catch (_) {
-    // Non-ESM or non-Vite environment
+  // Check process.env (Vercel / Node build environments)
+  if (typeof process !== "undefined" && process.env && process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL;
   }
-  if (typeof window !== "undefined" && window.__VITE_API_URL__) {
-    return window.__VITE_API_URL__.replace(/\/+$/, "");
+
+  // Check window global (if injected by hosting provider or config script)
+  if (typeof window !== "undefined") {
+    if (window.BACKEND_URL) return window.BACKEND_URL;
+    if (window.__ENV__?.BACKEND_URL) return window.__ENV__.BACKEND_URL;
   }
-  // Standalone dev fallback vs same-origin production
-  return window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1")
+
+  // Local development fallback
+  return (window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1"))
     ? (window.location.port === "8000" ? "" : "http://localhost:8000")
     : "";
 };
 
-const API_BASE = getApiBase();
+const API_BASE = getApiBase().replace(/\/+$/, "");
+
+
 
 
 // State
